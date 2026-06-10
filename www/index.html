@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Lamp Control</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#121a28">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/702/702814.png">
+
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="background-elements">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+    </div>
+
+    <div class="glass-container">
+        <header>
+            <h1>Smart Lamp</h1>
+            <p class="subtitle">Control your lighting</p>
+        </header>
+
+        <div class="status-card">
+            <div class="status-item">
+                <span class="label">Brightness</span>
+                <span class="value" id="val-brightness">0%</span>
+            </div>
+            <div class="status-item">
+                <span class="label">Lux</span>
+                <span class="value" id="val-lux">0</span>
+            </div>
+        </div>
+
+        <div class="modes-grid">
+            <button class="mode-btn" data-mode="ruang_tidur">
+                <span class="icon">🛏️</span>
+                <span>Tidur</span>
+            </button>
+            <button class="mode-btn" data-mode="ruang_tamu">
+                <span class="icon">🛋️</span>
+                <span>Tamu</span>
+            </button>
+            <button class="mode-btn" data-mode="ruang_makan">
+                <span class="icon">🍽️</span>
+                <span>Makan</span>
+            </button>
+            <button class="mode-btn" data-mode="ruang_kerja">
+                <span class="icon">💻</span>
+                <span>Kerja</span>
+            </button>
+            <button class="mode-btn" data-mode="manual" id="btn-manual">
+                <span class="icon">🎚️</span>
+                <span>Manual</span>
+            </button>
+        </div>
+
+        <div class="slider-container" id="manual-slider-container">
+            <label for="brightness-slider">Manual Brightness</label>
+            <input type="range" id="brightness-slider" min="0" max="100" value="0" disabled>
+        </div>
+
+        <div class="logs-container">
+            <h2>Riwayat (Lampu 1)</h2>
+            <div class="logs-list" id="logs-list">
+                <div class="log-placeholder">Belum ada riwayat</div>
+            </div>
+        </div>
+        
+        <div id="error-box" style="display:none; background: rgba(255,0,0,0.2); border: 1px solid red; padding: 10px; margin-top: 10px; border-radius: 8px; color: white; font-size: 12px; word-break: break-all;">
+        </div>
+    </div>
+
+    <script>
+        // Mendaftarkan Service Worker untuk fitur Aplikasi Mobile (PWA)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker terdaftar sukses:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('Pendaftaran ServiceWorker gagal:', error);
+                    });
+            });
+        }
+
+        // Global error catcher
+        window.onerror = function(msg, url, line, col, error) {
+            const errBox = document.getElementById('error-box');
+            errBox.style.display = 'block';
+            errBox.innerHTML += `<strong>Error:</strong> ${msg}<br>Line: ${line}<br><br>`;
+        };
+        window.addEventListener("unhandledrejection", function(e) {
+            const errBox = document.getElementById('error-box');
+            errBox.style.display = 'block';
+            errBox.innerHTML += `<strong>Promise Error:</strong> ${e.reason}<br><br>`;
+        });
+    </script>
+    <script src="app.js?v=3"></script>
+</body>
+</html>

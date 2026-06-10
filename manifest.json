@@ -1,0 +1,17 @@
+{
+  "name": "Smart Lamp Control",
+  "short_name": "Smart Lamp",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0a0f18",
+  "theme_color": "#121a28",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/702/702814.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
