@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Lamp Control</title>
+    <meta name="description" content="Smart Lamp Control - Kendalikan pencahayaan rumah pintar Anda dari mana saja.">
+
+    <meta name="theme-color" content="#070d1a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/702/702814.png">
+
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Background Blobs -->
+    <div class="background-elements">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="glass-container">
+
+        <!-- HEADER -->
+        <header>
+            <div class="header-top">
+                <div class="lamp-icon-wrap">
+                    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="bulbGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%"   stop-color="#60a5fa"/>
+                                <stop offset="100%" stop-color="#c084fc"/>
+                            </linearGradient>
+                        </defs>
+                        <path d="M32 8C22.06 8 14 16.06 14 26c0 6.2 3.18 11.66 8 14.92V46a2 2 0 002 2h16a2 2 0 002-2v-5.08C46.82 37.66 50 32.2 50 26 50 16.06 41.94 8 32 8z" fill="url(#bulbGrad)" opacity="0.9"/>
+                        <rect x="24" y="50" width="16" height="3" rx="1.5" fill="url(#bulbGrad)" opacity="0.7"/>
+                        <rect x="26" y="55" width="12" height="3" rx="1.5" fill="url(#bulbGrad)" opacity="0.5"/>
+                    </svg>
+                </div>
+                <h1>Smart Lamp</h1>
+
+
+            </div>
+            <p class="subtitle">Control your lighting, anywhere</p>
+        </header>
+
+        <!-- TABS -->
+        <div class="tab-container">
+            <button class="tab-btn active" id="tab-lampu_1" onclick="switchLamp('lampu_1', this)">
+                <span class="tab-icon">💡</span> Lampu 1
+            </button>
+            <button class="tab-btn" id="tab-lampu_2" onclick="switchLamp('lampu_2', this)">
+                <span class="tab-icon">💡</span> Lampu 2
+            </button>
+        </div>
+
+        <!-- ============ PANEL LAMPU 1 ============ -->
+        <div id="panel-lampu_1" class="lamp-panel active">
+
+            <!-- Lamp Visual: Ring Gauge + Glow Icon -->
+            <div class="lamp-visual-section">
+                <!-- SVG Ring Gauge -->
+                <div class="ring-gauge-wrap">
+                    <svg class="ring-gauge" viewBox="0 0 120 120">
+                        <defs>
+                            <linearGradient id="ringGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%"   stop-color="#60a5fa"/>
+                                <stop offset="100%" stop-color="#a78bfa"/>
+                            </linearGradient>
+                        </defs>
+                        <circle class="ring-bg"   cx="60" cy="60" r="50"/>
+                        <circle class="ring-fill" cx="60" cy="60" r="50" id="ring-fill-1"
+                                stroke="url(#ringGrad1)"
+                                style="stroke-dasharray:314; stroke-dashoffset:314;"/>
+                    </svg>
+                    <div class="ring-center">
+                        <span class="ring-brightness-val" id="val-brightness-1">0%</span>
+                        <span class="ring-brightness-label">Brightness</span>
+                    </div>
+                </div>
+
+                <!-- Lamp Info -->
+                <div class="lamp-info-section">
+                    <!-- Lamp Bulb Glow -->
+                    <div class="lamp-glow-icon">
+                        <div class="lamp-bulb" id="bulb-1">💡</div>
+                        <span class="lamp-status-label off" id="bulb-label-1">OFF</span>
+                    </div>
+                    <!-- Stats -->
+                    <div class="stat-row">
+                        <div class="stat-item">
+                            <span class="stat-label">Lux</span>
+                            <span class="stat-value" id="val-lux-1">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Mode Display -->
+            <div class="active-mode-display">
+                <div class="active-mode-dot" id="mode-dot-1"></div>
+                <div class="active-mode-text">Mode aktif: <strong id="active-mode-label-1">–</strong></div>
+            </div>
+
+
+
+            <!-- Modes Grid -->
+            <span class="modes-section-title">Pilih Mode</span>
+            <div class="modes-grid">
+                <button class="mode-btn btn-lampu_1" data-mode="ruang_tidur">
+                    <span class="icon">🛏️</span>
+                    <span>Tidur</span>
+                </button>
+                <button class="mode-btn btn-lampu_1" data-mode="ruang_tamu">
+                    <span class="icon">🛋️</span>
+                    <span>Tamu</span>
+                </button>
+                <button class="mode-btn btn-lampu_1" data-mode="ruang_makan">
+                    <span class="icon">🍽️</span>
+                    <span>Makan</span>
+                </button>
+                <button class="mode-btn btn-lampu_1" data-mode="ruang_kerja">
+                    <span class="icon">💻</span>
+                    <span>Kerja</span>
+                </button>
+                <button class="mode-btn btn-lampu_1" data-mode="manual" id="btn-manual-1">
+                    <span class="icon">🎚️</span>
+                    <span>Manual</span>
+                </button>
+            </div>
+
+            <!-- Slider (Manual) -->
+            <div class="slider-container" id="slider-container-1">
+                <div class="slider-header">
+                    <label for="brightness-slider-1">Kecerahan Manual</label>
+                    <span class="slider-val-display" id="slider-display-1">0%</span>
+                </div>
+                <input type="range" id="brightness-slider-1" min="0" max="100" value="0" disabled>
+            </div>
+
+            <div class="section-divider"></div>
+
+            <!-- Logs -->
+            <div class="logs-container">
+                <div class="logs-header">
+                    <h2>Riwayat Lampu 1</h2>
+                    <span class="logs-count-badge" id="log-count-1">0 log</span>
+                </div>
+                <div class="logs-list" id="logs-list-1">
+                    <div class="log-placeholder">Belum ada riwayat</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ PANEL LAMPU 2 ============ -->
+        <div id="panel-lampu_2" class="lamp-panel">
+
+            <!-- Lamp Visual: Ring Gauge + Glow Icon -->
+            <div class="lamp-visual-section">
+                <div class="ring-gauge-wrap">
+                    <svg class="ring-gauge" viewBox="0 0 120 120">
+                        <defs>
+                            <linearGradient id="ringGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%"   stop-color="#a78bfa"/>
+                                <stop offset="100%" stop-color="#f0abfc"/>
+                            </linearGradient>
+                        </defs>
+                        <circle class="ring-bg"   cx="60" cy="60" r="50"/>
+                        <circle class="ring-fill" cx="60" cy="60" r="50" id="ring-fill-2"
+                                stroke="url(#ringGrad2)"
+                                style="stroke-dasharray:314; stroke-dashoffset:314;"/>
+                    </svg>
+                    <div class="ring-center">
+                        <span class="ring-brightness-val" id="val-brightness-2">0%</span>
+                        <span class="ring-brightness-label">Brightness</span>
+                    </div>
+                </div>
+
+                <div class="lamp-info-section">
+                    <div class="lamp-glow-icon">
+                        <div class="lamp-bulb" id="bulb-2">💡</div>
+                        <span class="lamp-status-label off" id="bulb-label-2">OFF</span>
+                    </div>
+                    <div class="stat-row">
+                        <div class="stat-item">
+                            <span class="stat-label">Lux</span>
+                            <span class="stat-value" id="val-lux-2">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Mode Display -->
+            <div class="active-mode-display">
+                <div class="active-mode-dot" id="mode-dot-2" style="background:#a78bfa;box-shadow:0 0 8px #a78bfa;"></div>
+                <div class="active-mode-text">Mode aktif: <strong id="active-mode-label-2">–</strong></div>
+            </div>
+
+
+
+            <!-- Modes Grid -->
+            <span class="modes-section-title">Pilih Mode</span>
+            <div class="modes-grid">
+                <button class="mode-btn btn-lampu_2" data-mode="ruang_dapur">
+                    <span class="icon">🍳</span>
+                    <span>Dapur</span>
+                </button>
+                <button class="mode-btn btn-lampu_2" data-mode="ruang_teras">
+                    <span class="icon">🏡</span>
+                    <span>Teras</span>
+                </button>
+                <button class="mode-btn btn-lampu_2" data-mode="kamar_mandi">
+                    <span class="icon">🚿</span>
+                    <span>Kamar Mandi</span>
+                </button>
+                <button class="mode-btn btn-lampu_2" data-mode="manual_2">
+                    <span class="icon">🎚️</span>
+                    <span>Manual</span>
+                </button>
+            </div>
+
+            <!-- Slider (Manual) -->
+            <div class="slider-container" id="slider-container-2">
+                <div class="slider-header">
+                    <label for="brightness-slider-2">Kecerahan Manual</label>
+                    <span class="slider-val-display" id="slider-display-2">0%</span>
+                </div>
+                <input type="range" id="brightness-slider-2" min="0" max="100" value="0" disabled>
+            </div>
+
+            <div class="section-divider"></div>
+
+            <!-- Logs -->
+            <div class="logs-container">
+                <div class="logs-header">
+                    <h2>Riwayat Lampu 2</h2>
+                    <span class="logs-count-badge" id="log-count-2">0 log</span>
+                </div>
+                <div class="logs-list" id="logs-list-2">
+                    <div class="log-placeholder">Belum ada riwayat</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error Box -->
+        <div id="error-box"></div>
+
+    </div><!-- /glass-container -->
+
+    <script>
+        // Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(r => console.log('SW registered:', r.scope))
+                    .catch(e => console.log('SW failed:', e));
+            });
+        }
+
+        // Global Error Handler
+        window.onerror = function(msg, url, line) {
+            const errBox = document.getElementById('error-box');
+            errBox.style.display = 'block';
+            errBox.innerHTML += `<strong>Error:</strong> ${msg}<br>Line: ${line}<br><br>`;
+        };
+        window.addEventListener("unhandledrejection", function(e) {
+            const errBox = document.getElementById('error-box');
+            errBox.style.display = 'block';
+            errBox.innerHTML += `<strong>Promise Error:</strong> ${e.reason}<br><br>`;
+        });
+    </script>
+    <script src="app.js?v=5"></script>
+</body>
+</html>
