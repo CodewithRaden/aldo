@@ -4,7 +4,7 @@
 const SUPABASE_URL = "https://vfjwilyvjslgfkerobxw.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmandpbHl2anNsZ2ZrZXJvYnh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNzYzOTYsImV4cCI6MjA5NjY1MjM5Nn0.FDe7rCu5BO3CVhAGJUKjvWyEreWYsOPDcreSOpeuCv4";
 
-const headers = {
+const HEADERS = {
     "apikey": SUPABASE_KEY,
     "Authorization": `Bearer ${SUPABASE_KEY}`,
     "Content-Type": "application/json",
@@ -12,339 +12,731 @@ const headers = {
 };
 
 // ==========================================
-// GLOBAL STATES
+// SNI 03-6197-2000 — AMBANG BATAS LUX
 // ==========================================
-let isUpdatingSlider1 = false;
-let isUpdatingSlider2 = false;
-
-// ==========================================
-// MODE LABELS (Bahasa Indonesia)
-// ==========================================
-const MODE_LABELS = {
-    ruang_tidur:  "Ruang Tidur 🛏️",
-    ruang_tamu:   "Ruang Tamu 🛋️",
-    ruang_makan:  "Ruang Makan 🍽️",
-    ruang_kerja:  "Ruang Kerja 💻",
-    manual:       "Manual 🎚️",
-    ruang_dapur:  "Dapur 🍳",
-    ruang_teras:  "Teras 🏡",
-    kamar_mandi:  "Kamar Mandi 🚿",
-    manual_2:     "Manual 🎚️",
-    off:          "Mati ⚫"
-};
-
-// Mode → badge CSS class
-const MODE_BADGE_CLASS = {
-    ruang_tidur:  "badge-tidur",
-    ruang_tamu:   "badge-tamu",
-    ruang_makan:  "badge-makan",
-    ruang_kerja:  "badge-kerja",
-    manual:       "badge-manual",
-    manual_2:     "badge-manual",
-    ruang_dapur:  "badge-dapur",
-    ruang_teras:  "badge-teras",
-    kamar_mandi:  "badge-mandi",
-    off:          "badge-off"
+const SNI_THRESHOLDS = {
+    ruang_tamu:  { min: 120, max: 150 },
+    ruang_makan: { min: 120, max: 250 },
+    ruang_kerja: { min: 120, max: 250 },
+    ruang_tidur: { min: 120, max: 250 },
+    kamar_mandi: { min: 250, max: 500 },
+    dapur:       { min: 250, max: 500 },
+    teras:       { min:  60, max: 120 },
+    garasi:      { min:  60, max: 120 },
 };
 
 // ==========================================
-// INITIALIZATION
+// MODE CONFIGURATION
+// ==========================================
+const MODES = [
+    { key: 'ruang_tidur', label: 'Ruang Tidur',  icon: '🛏️' },
+    { key: 'ruang_tamu',  label: 'Ruang Tamu',   icon: '🛋️' },
+    { key: 'ruang_makan', label: 'Ruang Makan',  icon: '🍽️' },
+    { key: 'ruang_kerja', label: 'Ruang Kerja',  icon: '💻' },
+    { key: 'kamar_mandi', label: 'Kamar Mandi',  icon: '🚿' },
+    { key: 'dapur',       label: 'Dapur',         icon: '🍳' },
+    { key: 'teras',       label: 'Teras',         icon: '🏡' },
+    { key: 'garasi',      label: 'Garasi',        icon: '🚗' },
+];
+
+// ==========================================
+// STATE
+// ==========================================
+let currentDeviceId   = null;
+let luxChart          = null;
+let pollingInterval   = null;
+let homeRefreshInterval = null;
+let selectedModeModal = null;
+let devices           = [];
+
+// ==========================================
+// INIT
 // ==========================================
 async function initApp() {
+    renderModalModes();
+    await loadDevices();
+    homeRefreshInterval = setInterval(loadDevices, 4000);
+}
+
+// ==========================================
+// LOAD ALL DEVICES
+// ==========================================
+async function loadDevices() {
     try {
-        await fetchAllData();
-        // Polling every 2 seconds
-        setInterval(async () => {
-            try {
-                await fetchAllData();
-            } catch(e) {
-                console.error("Polling error:", e);
-            }
-        }, 2000);
-    } catch (e) {
-        showError("Gagal Inisialisasi: " + e.message);
-    }
-}
-
-async function fetchAllData() {
-    await Promise.all([
-        fetchDeviceData('lampu_1'),
-        fetchDeviceData('lampu_2'),
-        fetchLogsData('lampu_1', 'logs-list-1', 'log-count-1'),
-        fetchLogsData('lampu_2', 'logs-list-2', 'log-count-2'),
-    ]);
-}
-
-// ==========================================
-// TAB SWITCHER
-// ==========================================
-function switchLamp(lampId, btnEl) {
-    document.querySelectorAll('.lamp-panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-
-    document.getElementById(`panel-${lampId}`).classList.add('active');
-    (btnEl || document.getElementById(`tab-${lampId}`)).classList.add('active');
-}
-
-// ==========================================
-// FETCH DEVICE STATE
-// ==========================================
-async function fetchDeviceData(id) {
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/devices?id=eq.${id}`, {
-        method: 'GET',
-        headers: headers
-    });
-    if (!response.ok) throw new Error(`Gagal mengambil data ${id}`);
-    const data = await response.json();
-    if (data && data.length > 0) {
-        handleDeviceUpdate(id, data[0]);
-    }
-}
-
-// ==========================================
-// FETCH LOGS
-// ==========================================
-async function fetchLogsData(id, listElementId, countElementId) {
-    try {
-        const response = await fetch(
-            `${SUPABASE_URL}/rest/v1/device_logs?device_id=eq.${id}&order=created_at.desc&limit=15`,
-            { method: 'GET', headers: headers }
+        // Hapus order=created_at karena kolom tersebut mungkin belum ada
+        const res = await fetch(
+            `${SUPABASE_URL}/rest/v1/devices?select=*`,
+            { headers: HEADERS }
         );
-        if (!response.ok) throw new Error(`Gagal mengambil histori ${id}`);
-        const logs = await response.json();
 
-        const logsList  = document.getElementById(listElementId);
-        const countBadge = document.getElementById(countElementId);
-        if (!logsList) return;
-
-        logsList.innerHTML = '';
-        if (!logs || logs.length === 0) {
-            logsList.innerHTML = '<div class="log-placeholder">Belum ada riwayat</div>';
-            if (countBadge) countBadge.textContent = '0 log';
-            return;
+        if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`HTTP ${res.status}: ${errText}`);
         }
 
-        if (countBadge) countBadge.textContent = `${logs.length} log`;
+        const data = await res.json();
 
-        logs.forEach((log) => {
-            const logItem = document.createElement('div');
-            logItem.className = 'log-item';
+        // Validasi response adalah array
+        if (!Array.isArray(data)) {
+            throw new Error('Response bukan array: ' + JSON.stringify(data));
+        }
 
-            const modeKey  = log.mode || 'default';
-            const modeLabel = (MODE_LABELS[modeKey] || modeKey.replace(/_/g, ' ').toUpperCase());
-            const badgeCls  = MODE_BADGE_CLASS[modeKey] || 'badge-default';
+        devices = data;
+        renderDeviceList(devices);
+        hideLoadError();
 
-            const dateObj    = new Date(log.created_at);
-            const timeString = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            const dateString = dateObj.toLocaleDateString('id-ID');
-
-            logItem.innerHTML = `
-                <div class="log-top">
-                    <span class="log-time">${dateString} ${timeString}</span>
-                    <span class="log-mode-badge ${badgeCls}">${modeLabel}</span>
-                </div>
-                <div class="log-details">
-                    <span>Lux: <strong>${log.lux}</strong></span>
-                    <span>Brightness: <strong>${log.brightness}%</strong></span>
-                </div>
-            `;
-            logsList.appendChild(logItem);
-        });
+        // Refresh detail stats jika view detail sedang terbuka
+        if (currentDeviceId) {
+            const device = devices.find(d => d.id === currentDeviceId);
+            if (device) updateDetailUI(device);
+        }
     } catch (e) {
+        console.error('loadDevices error:', e);
+        showLoadError(e.message);
+    }
+}
+
+function showLoadError(msg) {
+    let el = document.getElementById('load-error-banner');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'load-error-banner';
+        el.style.cssText = [
+            'background:rgba(239,68,68,0.1)',
+            'border:1px solid rgba(239,68,68,0.3)',
+            'border-radius:12px',
+            'padding:10px 14px',
+            'font-size:12px',
+            'color:#f87171',
+            'display:flex',
+            'align-items:center',
+            'justify-content:space-between',
+            'gap:8px'
+        ].join(';');
+        const grid = document.getElementById('device-grid');
+        grid.parentNode.insertBefore(el, grid);
+    }
+    el.innerHTML = `
+        <span>⚠️ Gagal memuat device: ${msg}</span>
+        <button onclick="loadDevices()" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.4);border-radius:8px;padding:4px 10px;color:#f87171;font-size:11px;cursor:pointer;font-family:Outfit,sans-serif">Coba Lagi</button>
+    `;
+    el.style.display = 'flex';
+}
+
+function hideLoadError() {
+    const el = document.getElementById('load-error-banner');
+    if (el) el.style.display = 'none';
+}
+
+// ==========================================
+// RENDER DEVICE LIST (Home View)
+// ==========================================
+function renderDeviceList(devList) {
+    const grid        = document.getElementById('device-grid');
+    const placeholder = document.getElementById('device-placeholder');
+    const countEl     = document.getElementById('device-count');
+
+    countEl.textContent = `${devList.length} device`;
+
+    if (devList.length === 0) {
+        placeholder.style.display = 'flex';
+        grid.querySelectorAll('.device-card').forEach(el => el.remove());
+        return;
+    }
+    placeholder.style.display = 'none';
+
+    // Remove stale cards
+    const incomingIds = new Set(devList.map(d => d.id));
+    grid.querySelectorAll('.device-card').forEach(el => {
+        if (!incomingIds.has(el.dataset.id)) el.remove();
+    });
+
+    // Add / update cards
+    devList.forEach(device => {
+        let card = grid.querySelector(`.device-card[data-id="${device.id}"]`);
+        if (!card) {
+            card = document.createElement('div');
+            card.className = 'device-card';
+            card.dataset.id = device.id;
+            card.addEventListener('click', () => openDevice(device.id));
+            grid.appendChild(card);
+        }
+
+        const mode = MODES.find(m => m.key === device.mode);
+        const icon  = mode ? mode.icon  : '💡';
+        const label = mode ? mode.label : (device.mode || '–');
+        const isOn  = !!device.is_on;
+        const lux   = device.current_lux ?? 0;
+        const thr   = SNI_THRESHOLDS[device.mode];
+        let sniStatus = 'unknown';
+        if (thr) {
+            if (!isOn)          sniStatus = 'off';
+            else if (lux < thr.min) sniStatus = 'low';
+            else if (lux > thr.max) sniStatus = 'high';
+            else                sniStatus = 'ok';
+        }
+
+        card.innerHTML = `
+            <div class="card-top-row">
+                <div class="card-icon-wrap ${isOn ? 'icon-on' : ''}">${icon}</div>
+                <span class="card-power-dot ${isOn ? 'dot-on' : 'dot-off'}"></span>
+            </div>
+            <div class="card-name">${device.name || device.id}</div>
+            <div class="card-device-id">${device.id}</div>
+            <div class="card-stats-row">
+                <span class="card-lux-val">☀️ ${lux} lx</span>
+                <span class="card-sni-badge sni-${sniStatus}">${getSNILabel(sniStatus)}</span>
+            </div>
+        `;
+    });
+}
+
+function getSNILabel(status) {
+    const map = { ok: '✓ SNI', low: '↑ Redup', high: '↓ Terang', off: '⚫ OFF', unknown: '–' };
+    return map[status] || '–';
+}
+
+// ==========================================
+// OPEN DEVICE DETAIL
+// ==========================================
+function openDevice(id) {
+    currentDeviceId = id;
+    const device = devices.find(d => d.id === id);
+    if (!device) return;
+
+    // Stop home refresh while detail is open
+    if (homeRefreshInterval) clearInterval(homeRefreshInterval);
+
+    // Slide to detail view
+    document.getElementById('view-home').classList.remove('active');
+    document.getElementById('view-detail').classList.add('active');
+
+    // Populate
+    document.getElementById('detail-name').textContent = device.name || device.id;
+    updateDetailUI(device);
+
+    // Init chart then start polling
+    initLuxChart();
+    pollDetailOnce(id); // immediate first fetch
+    if (pollingInterval) clearInterval(pollingInterval);
+    pollingInterval = setInterval(() => pollDetailOnce(id), 2000);
+}
+
+async function pollDetailOnce(id) {
+    try {
+        const res = await fetch(
+            `${SUPABASE_URL}/rest/v1/devices?id=eq.${id}&select=*`,
+            { headers: HEADERS }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.length > 0) {
+            const device = data[0];
+            const idx = devices.findIndex(d => d.id === id);
+            if (idx !== -1) devices[idx] = device;
+            updateDetailUI(device);
+        }
+        await refreshChart(id);
+    } catch (e) {
+        console.error('poll error:', e);
+    }
+}
+
+// ==========================================
+// UPDATE DETAIL UI
+// ==========================================
+function updateDetailUI(device) {
+    const isOn      = !!device.is_on;
+    const lux       = device.current_lux ?? 0;
+    const bright    = device.current_brightness ?? 0;
+    const modeKey   = device.mode || '';
+    const modeInfo  = MODES.find(m => m.key === modeKey);
+    const thr       = SNI_THRESHOLDS[modeKey];
+
+    // --- Header badge ---
+    let modeLabel;
+    if (modeInfo) {
+        modeLabel = `${modeInfo.icon} ${modeInfo.label} 🔄`;
+    } else if (modeKey === 'manual' || modeKey === 'manual_2') {
+        modeLabel = '🎚️ Manual 🔄';
+    } else {
+        modeLabel = (modeKey || '–') + ' 🔄';
+    }
+    document.getElementById('detail-mode-badge').innerHTML = `<span>${modeLabel}</span>`;
+    document.getElementById('online-dot').classList.toggle('dot-online', true);
+
+    // --- Stats ---
+    document.getElementById('detail-lux').textContent        = `${lux} lx`;
+    document.getElementById('detail-brightness').textContent = `${bright}%`;
+
+    // --- Power toggle ---
+    const track = document.getElementById('toggle-track');
+    const text  = document.getElementById('power-status-text');
+    track.classList.toggle('track-on', isOn);
+    text.textContent = isOn ? 'ON' : 'OFF';
+    text.style.color = isOn ? '#4ade80' : '#64748b';
+
+    // --- SNI badge (SELALU update, tidak tergantung threshold) ---
+    const badge = document.getElementById('sni-status-badge');
+
+    if (!isOn) {
+        // Lampu OFF
+        badge.textContent = '⚫ Lampu dalam keadaan OFF';
+        badge.className   = 'sni-status-badge badge-off';
+    } else if (!thr) {
+        // Mode tidak dikenali / tidak punya threshold SNI
+        badge.textContent = 'ℹ️ Pilih mode ruangan untuk monitoring SNI';
+        badge.className   = 'sni-status-badge badge-off';
+    } else if (lux < thr.min) {
+        badge.textContent = `⬇️ Redup (${lux} lx < min ${thr.min} lx) — Menaikan kecerahan...`;
+        badge.className   = 'sni-status-badge badge-low';
+    } else if (lux > thr.max) {
+        badge.textContent = `⬆️ Terlalu terang (${lux} lx > max ${thr.max} lx) — Meredupkan...`;
+        badge.className   = 'sni-status-badge badge-high';
+    } else {
+        badge.textContent = `✓ Dalam ambang SNI (${lux} lx) — Kecerahan dipertahankan`;
+        badge.className   = 'sni-status-badge badge-ok';
+    }
+
+    // --- SNI bar visual (hanya tampil kalau ada threshold) ---
+    const sniSection = document.getElementById('sni-range');
+    const sniZone    = document.getElementById('sni-zone-ok');
+    const sniMarker  = document.getElementById('sni-marker');
+    const sniAxisMax = document.getElementById('sni-axis-max');
+
+    if (thr) {
+        const scale    = thr.max * 1.8;
+        const zoneLeft = (thr.min / scale) * 100;
+        const zoneW    = ((thr.max - thr.min) / scale) * 100;
+        // Kalau lux 0 & lampu ON, marker di tengah-tengah area kiri agar terlihat
+        const markerPct = isOn && lux === 0
+            ? 2  // tempel di ujung kiri tapi tetap visible
+            : Math.min((lux / scale) * 100, 99);
+
+        sniSection.textContent  = `${thr.min} – ${thr.max} lx`;
+        sniAxisMax.textContent  = `${Math.round(scale)} lx`;
+        sniZone.style.left      = zoneLeft + '%';
+        sniZone.style.width     = zoneW + '%';
+        sniMarker.style.left    = markerPct + '%';
+        sniMarker.style.display = 'block';
+    } else {
+        // Tidak ada threshold → sembunyikan bar, tampilkan pesan
+        sniSection.textContent  = '–';
+        sniAxisMax.textContent  = '–';
+        sniZone.style.width     = '0';
+        sniMarker.style.display = 'none';
+    }
+
+    // --- Sync mode buttons highlight ---
+    document.querySelectorAll('.detail-mode-btn').forEach(btn => {
+        btn.classList.toggle('mode-active', btn.dataset.mode === modeKey);
+    });
+}
+
+
+// ==========================================
+// POWER TOGGLE
+// ==========================================
+async function togglePower() {
+    if (!currentDeviceId) return;
+    const device = devices.find(d => d.id === currentDeviceId);
+    if (!device) return;
+
+    const newState = !device.is_on;
+    // Optimistic update
+    device.is_on = newState;
+    updateDetailUI(device);
+
+    try {
+        await fetch(`${SUPABASE_URL}/rest/v1/devices?id=eq.${currentDeviceId}`, {
+            method: 'PATCH',
+            headers: HEADERS,
+            body: JSON.stringify({ is_on: newState })
+        });
+        if (navigator.vibrate) navigator.vibrate(20);
+    } catch (e) {
+        // Rollback
+        device.is_on = !newState;
+        updateDetailUI(device);
         console.error(e);
     }
 }
 
 // ==========================================
-// DATA HANDLER — updates all UI elements
+// SWITCH MODE MODAL (Detail View)
 // ==========================================
-function handleDeviceUpdate(id, device) {
-    const suffix = id === 'lampu_1' ? '1' : '2';
-    const isManual = device.mode === 'manual' || device.mode === 'manual_2';
-    const brightness = device.current_brightness ?? 0;
-    const isOff = (device.mode === 'off' || brightness === 0);
+let selectedModeSwitch = null;
 
-    // --- Mode Buttons ---
-    document.querySelectorAll(`.btn-${id}`).forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.mode === device.mode);
-    });
+function openSwitchModal() {
+    if (!currentDeviceId) return;
+    const device = devices.find(d => d.id === currentDeviceId);
+    const currentMode = device ? device.mode : null;
+    selectedModeSwitch = currentMode;
 
-    // --- Slider ---
-    const sliderContainer = document.getElementById(`slider-container-${suffix}`);
-    const brightnessSlider = document.getElementById(`brightness-slider-${suffix}`);
-    const sliderDisplay    = document.getElementById(`slider-display-${suffix}`);
-
-    if (isManual) {
-        sliderContainer.classList.add('active');
-        brightnessSlider.disabled = false;
-        const isUpdating = id === 'lampu_1' ? isUpdatingSlider1 : isUpdatingSlider2;
-        if (!isUpdating) {
-            brightnessSlider.value = device.manual_brightness;
-            brightnessSlider.style.setProperty('--value', device.manual_brightness + '%');
-            if (sliderDisplay) sliderDisplay.textContent = device.manual_brightness + '%';
-        }
-    } else {
-        sliderContainer.classList.remove('active');
-        brightnessSlider.disabled = true;
+    const grid = document.getElementById('switch-modes-grid');
+    if (grid) {
+        grid.innerHTML = MODES.map(m => `
+            <button class="modal-mode-btn ${m.key === currentMode ? 'selected' : ''}"
+                    data-mode="${m.key}"
+                    id="switch-mode-${m.key}"
+                    onclick="selectSwitchMode('${m.key}', this)">
+                <span class="modal-mode-icon">${m.icon}</span>
+                <span class="modal-mode-label">${m.label}</span>
+            </button>
+        `).join('');
     }
 
-    // --- Ring Gauge ---
-    updateRingGauge(suffix, brightness);
+    const overlay = document.getElementById('switch-modal-overlay');
+    const card    = document.getElementById('switch-modal-card');
+    overlay.classList.add('active');
+    requestAnimationFrame(() => card.classList.add('active'));
+}
 
-    // --- Brightness Value (with pulse) ---
-    const valBrightness = document.getElementById(`val-brightness-${suffix}`);
-    if (valBrightness && valBrightness.textContent !== brightness + '%') {
-        valBrightness.textContent = brightness + '%';
-        valBrightness.classList.remove('pulse');
-        void valBrightness.offsetWidth;
-        valBrightness.classList.add('pulse');
+function selectSwitchMode(mode, el) {
+    selectedModeSwitch = mode;
+    document.querySelectorAll('#switch-modes-grid .modal-mode-btn').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+}
+
+function closeSwitchModal() {
+    const card = document.getElementById('switch-modal-card');
+    card.classList.remove('active');
+    setTimeout(() => document.getElementById('switch-modal-overlay').classList.remove('active'), 300);
+}
+
+function closeSwitchModalOutside(e) {
+    if (e.target === document.getElementById('switch-modal-overlay')) closeSwitchModal();
+}
+
+async function submitSwitchMode() {
+    if (!currentDeviceId || !selectedModeSwitch) {
+        closeSwitchModal();
+        return;
     }
+    const mode = selectedModeSwitch;
+    const device = devices.find(d => d.id === currentDeviceId);
+    if (device) device.mode = mode;
 
-    // --- Lux ---
-    const valLux = document.getElementById(`val-lux-${suffix}`);
-    if (valLux) valLux.textContent = device.current_lux ?? 0;
+    closeSwitchModal();
+    if (device) updateDetailUI(device);
+    showToast('✅ Mode ruangan berhasil diubah!');
 
-    // --- Lamp Glow + Status Label ---
-    updateLampGlow(suffix, brightness);
-
-    // --- Active Mode Label ---
-    updateModeLabel(suffix, device.mode);
-}
-
-// ==========================================
-// RING GAUGE UPDATE
-// ==========================================
-function updateRingGauge(suffix, brightness) {
-    const ringFill = document.getElementById(`ring-fill-${suffix}`);
-    if (!ringFill) return;
-    const circumference = 314; // 2 * π * 50
-    const offset = circumference - (brightness / 100) * circumference;
-    ringFill.style.strokeDashoffset = offset;
-}
-
-// ==========================================
-// LAMP GLOW UPDATE
-// ==========================================
-function updateLampGlow(suffix, brightness) {
-    const bulb  = document.getElementById(`bulb-${suffix}`);
-    const label = document.getElementById(`bulb-label-${suffix}`);
-    if (!bulb || !label) return;
-
-    bulb.classList.remove('glow-low', 'glow-mid', 'glow-high');
-    label.classList.remove('off', 'dim', 'bright');
-
-    if (brightness === 0) {
-        label.textContent = 'OFF';
-        label.classList.add('off');
-    } else if (brightness <= 35) {
-        bulb.classList.add('glow-low');
-        label.textContent = 'DIM';
-        label.classList.add('dim');
-    } else if (brightness <= 70) {
-        bulb.classList.add('glow-mid');
-        label.textContent = 'ON';
-        label.classList.add('dim');
-    } else {
-        bulb.classList.add('glow-high');
-        label.textContent = 'BRIGHT';
-        label.classList.add('bright');
-    }
-}
-
-// ==========================================
-// ACTIVE MODE LABEL UPDATE
-// ==========================================
-function updateModeLabel(suffix, mode) {
-    const labelEl = document.getElementById(`active-mode-label-${suffix}`);
-    if (labelEl) {
-        labelEl.textContent = MODE_LABELS[mode] || mode?.replace(/_/g, ' ') || '–';
-    }
-}
-
-// ==========================================
-// EVENT LISTENERS Setup — Mode Buttons
-// ==========================================
-function setupModeButtons(id) {
-    document.querySelectorAll(`.btn-${id}`).forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const selectedMode = btn.dataset.mode;
-            if (navigator.vibrate) navigator.vibrate([10, 20, 10]);
-
-            // Optimistic UI update
-            document.querySelectorAll(`.btn-${id}`).forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-
-            try {
-                await fetch(`${SUPABASE_URL}/rest/v1/devices?id=eq.${id}`, {
-                    method: 'PATCH',
-                    headers: headers,
-                    body: JSON.stringify({ mode: selectedMode })
-                });
-                await fetchDeviceData(id);
-            } catch (e) {
-                showError(`Gagal mengubah mode ${id}.`);
-            }
+    try {
+        await fetch(`${SUPABASE_URL}/rest/v1/devices?id=eq.${currentDeviceId}`, {
+            method: 'PATCH',
+            headers: HEADERS,
+            body: JSON.stringify({ mode })
         });
-    });
-}
-
-// ==========================================
-// EVENT LISTENERS Setup — Slider
-// ==========================================
-function setupSliderEvents(id, suffix) {
-    const slider       = document.getElementById(`brightness-slider-${suffix}`);
-    const sliderDisplay = document.getElementById(`slider-display-${suffix}`);
-    const valBrightness = document.getElementById(`val-brightness-${suffix}`);
-
-    slider.addEventListener('input', (e) => {
-        if (id === 'lampu_1') isUpdatingSlider1 = true;
-        else isUpdatingSlider2 = true;
-
-        const value = e.target.value;
-        if (navigator.vibrate && value % 10 === 0) navigator.vibrate(5);
-        slider.style.setProperty('--value', value + '%');
-        if (sliderDisplay) sliderDisplay.textContent = value + '%';
-        if (valBrightness) valBrightness.textContent = value + '%';
-
-        // Live ring + glow update while dragging
-        updateRingGauge(suffix, parseInt(value));
-        updateLampGlow(suffix, parseInt(value));
-    });
-
-    slider.addEventListener('change', async (e) => {
-        const value = parseInt(e.target.value);
-        try {
-            await fetch(`${SUPABASE_URL}/rest/v1/devices?id=eq.${id}`, {
-                method: 'PATCH',
-                headers: headers,
-                body: JSON.stringify({ manual_brightness: value })
-            });
-            if (id === 'lampu_1') isUpdatingSlider1 = false;
-            else isUpdatingSlider2 = false;
-            await fetchDeviceData(id);
-        } catch (e) {
-            showError(`Gagal mengubah kecerahan ${id}.`);
-        }
-    });
-}
-
-// ==========================================
-// ERROR DISPLAY
-// ==========================================
-function showError(msg) {
-    const errBox = document.getElementById('error-box');
-    if (errBox) {
-        errBox.style.display = 'block';
-        errBox.innerHTML += `<strong>Notice:</strong> ${msg}<br>`;
+        if (device) updateDetailUI(device);
+    } catch (e) {
+        console.error('switch mode error:', e);
+        showToast('❌ Gagal mengubah mode di server.');
     }
 }
 
 // ==========================================
-// INIT
+// LINE CHART (Chart.js)
 // ==========================================
-setupModeButtons('lampu_1');
-setupModeButtons('lampu_2');
-setupSliderEvents('lampu_1', '1');
-setupSliderEvents('lampu_2', '2');
+function initLuxChart() {
+    const canvas = document.getElementById('lux-chart');
+    if (luxChart) { luxChart.destroy(); luxChart = null; }
 
+    luxChart = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: 'Lux',
+                    data: [],
+                    borderColor: '#60a5fa',
+                    backgroundColor: 'rgba(96,165,250,0.07)',
+                    borderWidth: 2.5,
+                    pointRadius: 3.5,
+                    pointBackgroundColor: '#60a5fa',
+                    pointBorderColor: 'transparent',
+                    pointHoverRadius: 6,
+                    tension: 0.45,
+                    fill: true,
+                },
+                {
+                    label: 'SNI Min',
+                    data: [],
+                    borderColor: 'rgba(251,191,36,0.65)',
+                    borderWidth: 1.5,
+                    borderDash: [5, 4],
+                    pointRadius: 0,
+                    fill: false,
+                    tension: 0,
+                },
+                {
+                    label: 'SNI Max',
+                    data: [],
+                    borderColor: 'rgba(239,68,68,0.55)',
+                    borderWidth: 1.5,
+                    borderDash: [5, 4],
+                    pointRadius: 0,
+                    fill: false,
+                    tension: 0,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 350, easing: 'easeInOutQuart' },
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                x: {
+                    ticks: {
+                        color: '#475569',
+                        font: { family: 'Outfit', size: 10 },
+                        maxTicksLimit: 7,
+                        maxRotation: 0,
+                    },
+                    grid: { color: 'rgba(255,255,255,0.04)' },
+                    border: { color: 'rgba(255,255,255,0.06)' }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: '#475569',
+                        font: { family: 'Outfit', size: 10 },
+                        callback: val => val + ' lx'
+                    },
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    border: { color: 'rgba(255,255,255,0.06)' }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(7,13,26,0.92)',
+                    titleColor: '#64748b',
+                    bodyColor: '#e2e8f0',
+                    borderColor: 'rgba(96,165,250,0.25)',
+                    borderWidth: 1,
+                    padding: 10,
+                    callbacks: {
+                        label: ctx => {
+                            if (ctx.datasetIndex === 0) return `  Lux: ${ctx.parsed.y} lx`;
+                            if (ctx.datasetIndex === 1) return `  SNI Min: ${ctx.parsed.y} lx`;
+                            return `  SNI Max: ${ctx.parsed.y} lx`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+async function refreshChart(deviceId) {
+    try {
+        const res = await fetch(
+            `${SUPABASE_URL}/rest/v1/device_logs?device_id=eq.${deviceId}&order=created_at.desc&limit=20`,
+            { headers: HEADERS }
+        );
+        if (!res.ok || !luxChart) return;
+        const logs = await res.json();
+
+        const data = [...logs].reverse();
+        const device = devices.find(d => d.id === deviceId);
+        const thr    = device ? SNI_THRESHOLDS[device.mode] : null;
+        const n      = data.length;
+
+        document.getElementById('chart-count').textContent = `${n} data terakhir`;
+
+        luxChart.data.labels                 = data.map(l => {
+            const d = new Date(l.created_at);
+            return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        });
+        luxChart.data.datasets[0].data       = data.map(l => l.lux);
+        luxChart.data.datasets[1].data       = thr ? Array(n).fill(thr.min) : [];
+        luxChart.data.datasets[2].data       = thr ? Array(n).fill(thr.max) : [];
+
+        if (thr && n > 0) {
+            const maxLux = Math.max(...data.map(l => l.lux), thr.max);
+            luxChart.options.scales.y.suggestedMax = Math.ceil(maxLux * 1.2);
+        }
+
+        luxChart.update('none');
+    } catch (e) {
+        console.error('chart refresh error:', e);
+    }
+}
+
+// ==========================================
+// NAVIGATION
+// ==========================================
+function goBack() {
+    document.getElementById('view-detail').classList.remove('active');
+    document.getElementById('view-home').classList.add('active');
+
+    if (pollingInterval) clearInterval(pollingInterval);
+    pollingInterval = null;
+    currentDeviceId = null;
+
+    // Restart home refresh
+    loadDevices();
+    homeRefreshInterval = setInterval(loadDevices, 4000);
+}
+
+// ==========================================
+// ADD DEVICE MODAL
+// ==========================================
+function renderModalModes() {
+    const grid = document.getElementById('modal-modes-grid');
+    grid.innerHTML = MODES.map(m => `
+        <button class="modal-mode-btn"
+                data-mode="${m.key}"
+                id="modal-mode-${m.key}"
+                onclick="selectModalMode('${m.key}', this)">
+            <span class="modal-mode-icon">${m.icon}</span>
+            <span class="modal-mode-label">${m.label}</span>
+        </button>
+    `).join('');
+}
+
+function selectModalMode(mode, el) {
+    selectedModeModal = mode;
+    document.querySelectorAll('.modal-mode-btn').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+}
+
+function openAddModal() {
+    selectedModeModal = null;
+    document.getElementById('input-device-id').value   = '';
+    document.getElementById('input-device-name').value  = '';
+    document.querySelectorAll('.modal-mode-btn').forEach(b => b.classList.remove('selected'));
+
+    const overlay = document.getElementById('modal-overlay');
+    const card    = document.getElementById('modal-card');
+    overlay.classList.add('active');
+    requestAnimationFrame(() => card.classList.add('active'));
+    document.getElementById('input-device-id').focus();
+}
+
+function closeAddModal() {
+    const card = document.getElementById('modal-card');
+    card.classList.remove('active');
+    setTimeout(() => document.getElementById('modal-overlay').classList.remove('active'), 300);
+}
+
+function closeModalOutside(e) {
+    if (e.target === document.getElementById('modal-overlay')) closeAddModal();
+}
+
+async function submitAddDevice() {
+    const deviceId   = document.getElementById('input-device-id').value.trim();
+    const deviceName = document.getElementById('input-device-name').value.trim();
+    const mode       = selectedModeModal;
+
+    if (!deviceId)   { shakeInput('input-device-id');   return; }
+    if (!deviceName) { shakeInput('input-device-name');  return; }
+    if (!mode)       {
+        document.getElementById('modal-modes-grid').classList.add('shake');
+        setTimeout(() => document.getElementById('modal-modes-grid').classList.remove('shake'), 400);
+        return;
+    }
+
+    const btn = document.getElementById('btn-submit-device');
+    btn.disabled    = true;
+    btn.textContent = 'Menyimpan...';
+
+    try {
+        // Gunakan upsert: jika Device ID sudah ada, update nama & mode-nya
+        const upsertHeaders = {
+            ...HEADERS,
+            "Prefer": "return=representation,resolution=merge-duplicates"
+        };
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/devices`, {
+            method: 'POST',
+            headers: upsertHeaders,
+            body: JSON.stringify({
+                id: deviceId,
+                name: deviceName,
+                mode: mode,
+                is_on: true,
+                current_brightness: 0,
+                current_lux: 0,
+            })
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || `HTTP ${res.status}`);
+        }
+        closeAddModal();
+        await loadDevices();
+        showToast('✅ Device berhasil ditambahkan!');
+    } catch (e) {
+        // Tampilkan error di dalam modal (bukan alert)
+        let errMsg = e.message || 'Terjadi kesalahan';
+        const existing = document.getElementById('modal-error-msg');
+        if (existing) existing.remove();
+        const errEl = document.createElement('p');
+        errEl.id = 'modal-error-msg';
+        errEl.style.cssText = 'color:#f87171;font-size:12px;text-align:center;margin-top:-8px;';
+        errEl.textContent = '⚠️ ' + errMsg;
+        document.querySelector('.modal-footer').before(errEl);
+    } finally {
+        btn.disabled    = false;
+        btn.textContent = 'Tambahkan';
+    }
+}
+
+function shakeInput(id) {
+    const el = document.getElementById(id);
+    el.classList.add('shake');
+    el.focus();
+    setTimeout(() => el.classList.remove('shake'), 400);
+}
+
+// ==========================================
+// TOAST NOTIFICATION
+// ==========================================
+function showToast(msg, duration = 3000) {
+    const existing = document.getElementById('app-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'app-toast';
+    toast.textContent = msg;
+    toast.style.cssText = [
+        'position:fixed',
+        'bottom:32px',
+        'left:50%',
+        'transform:translateX(-50%) translateY(20px)',
+        'background:rgba(15,23,42,0.95)',
+        'border:1px solid rgba(255,255,255,0.12)',
+        'border-radius:12px',
+        'padding:12px 20px',
+        'color:#e2e8f0',
+        'font-size:13px',
+        'font-weight:500',
+        'font-family:Outfit,sans-serif',
+        'z-index:999',
+        'box-shadow:0 8px 24px rgba(0,0,0,0.4)',
+        'opacity:0',
+        'transition:all 0.3s cubic-bezier(0.4,0,0.2,1)',
+        'white-space:nowrap',
+        'pointer-events:none'
+    ].join(';');
+    document.body.appendChild(toast);
+
+    requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateX(-50%) translateY(0)';
+    });
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(-50%) translateY(10px)';
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
+
+// ==========================================
+// START
+
+// ==========================================
 initApp();

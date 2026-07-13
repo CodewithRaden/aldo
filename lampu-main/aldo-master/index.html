@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Lamp Control</title>
-    <meta name="description" content="Smart Lamp Control - Kendalikan pencahayaan rumah pintar Anda dari mana saja.">
-
+    <title>Smart Lamp — Dashboard</title>
+    <meta name="description" content="Smart Lamp Dashboard — Monitor pencahayaan rumah pintar berbasis SNI 03-6197-2000.">
     <meta name="theme-color" content="#070d1a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/702/702814.png">
-
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -24,257 +24,251 @@
         <div class="blob blob-3"></div>
     </div>
 
-    <!-- Main Container -->
-    <div class="glass-container">
+    <!-- ====================================================
+         VIEW: HOME — Daftar Device
+         ==================================================== -->
+    <div class="view view-home active" id="view-home">
+        <div class="glass-container">
 
-        <!-- HEADER -->
-        <header>
-            <div class="header-top">
-                <div class="lamp-icon-wrap">
-                    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <defs>
-                            <linearGradient id="bulbGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%"   stop-color="#60a5fa"/>
-                                <stop offset="100%" stop-color="#c084fc"/>
-                            </linearGradient>
-                        </defs>
-                        <path d="M32 8C22.06 8 14 16.06 14 26c0 6.2 3.18 11.66 8 14.92V46a2 2 0 002 2h16a2 2 0 002-2v-5.08C46.82 37.66 50 32.2 50 26 50 16.06 41.94 8 32 8z" fill="url(#bulbGrad)" opacity="0.9"/>
-                        <rect x="24" y="50" width="16" height="3" rx="1.5" fill="url(#bulbGrad)" opacity="0.7"/>
-                        <rect x="26" y="55" width="12" height="3" rx="1.5" fill="url(#bulbGrad)" opacity="0.5"/>
-                    </svg>
+            <!-- Header -->
+            <header>
+                <div class="header-top">
+                    <div class="lamp-icon-wrap">
+                        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <linearGradient id="bulbGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%"   stop-color="#60a5fa"/>
+                                    <stop offset="100%" stop-color="#c084fc"/>
+                                </linearGradient>
+                            </defs>
+                            <path d="M32 8C22.06 8 14 16.06 14 26c0 6.2 3.18 11.66 8 14.92V46a2 2 0 002 2h16a2 2 0 002-2v-5.08C46.82 37.66 50 32.2 50 26 50 16.06 41.94 8 32 8z" fill="url(#bulbGrad)" opacity="0.9"/>
+                            <rect x="24" y="50" width="16" height="3" rx="1.5" fill="url(#bulbGrad)" opacity="0.7"/>
+                            <rect x="26" y="55" width="12" height="3" rx="1.5" fill="url(#bulbGrad)" opacity="0.5"/>
+                        </svg>
+                    </div>
+                    <h1>Smart Lamp</h1>
                 </div>
-                <h1>Smart Lamp</h1>
+                <p class="subtitle">Monitoring berbasis SNI 03-6197-2000</p>
+            </header>
 
-
+            <!-- Device List Header -->
+            <div class="list-header">
+                <span class="section-label">Perangkat Terdaftar</span>
+                <span class="device-count-badge" id="device-count">0 device</span>
             </div>
-            <p class="subtitle">Control your lighting, anywhere</p>
-        </header>
 
-        <!-- TABS -->
-        <div class="tab-container">
-            <button class="tab-btn active" id="tab-lampu_1" onclick="switchLamp('lampu_1', this)">
-                <span class="tab-icon">💡</span> Lampu 1
+            <!-- Device Grid -->
+            <div class="device-grid" id="device-grid">
+                <div class="device-placeholder" id="device-placeholder">
+                    <span class="placeholder-icon">💡</span>
+                    <p>Belum ada perangkat</p>
+                    <small>Tap tombol di bawah untuk menambahkan</small>
+                </div>
+            </div>
+
+            <!-- Add Device Button -->
+            <button class="fab-add" id="btn-add-device" onclick="openAddModal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                <span>Add Device</span>
             </button>
-            <button class="tab-btn" id="tab-lampu_2" onclick="switchLamp('lampu_2', this)">
-                <span class="tab-icon">💡</span> Lampu 2
-            </button>
+
         </div>
+    </div>
 
-        <!-- ============ PANEL LAMPU 1 ============ -->
-        <div id="panel-lampu_1" class="lamp-panel active">
+    <!-- ====================================================
+         VIEW: DETAIL — Dashboard per Device
+         ==================================================== -->
+    <div class="view view-detail" id="view-detail">
+        <div class="glass-container">
 
-            <!-- Lamp Visual: Ring Gauge + Glow Icon -->
-            <div class="lamp-visual-section">
-                <!-- SVG Ring Gauge -->
-                <div class="ring-gauge-wrap">
-                    <svg class="ring-gauge" viewBox="0 0 120 120">
-                        <defs>
-                            <linearGradient id="ringGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%"   stop-color="#60a5fa"/>
-                                <stop offset="100%" stop-color="#a78bfa"/>
-                            </linearGradient>
-                        </defs>
-                        <circle class="ring-bg"   cx="60" cy="60" r="50"/>
-                        <circle class="ring-fill" cx="60" cy="60" r="50" id="ring-fill-1"
-                                stroke="url(#ringGrad1)"
-                                style="stroke-dasharray:314; stroke-dashoffset:314;"/>
+            <!-- Detail Header -->
+            <div class="detail-header">
+                <button class="back-btn" id="back-btn" onclick="goBack()" aria-label="Kembali">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M15 18l-6-6 6-6"/>
                     </svg>
-                    <div class="ring-center">
-                        <span class="ring-brightness-val" id="val-brightness-1">0%</span>
-                        <span class="ring-brightness-label">Brightness</span>
+                </button>
+                <div class="detail-title-wrap">
+                    <h2 class="detail-device-name" id="detail-name">–</h2>
+                    <button class="detail-mode-badge" id="detail-mode-badge" onclick="openSwitchModal()" title="Tap untuk ganti mode">
+                        <span>–</span>
+                    </button>
+                </div>
+                <div class="online-dot" id="online-dot" title="Online"></div>
+            </div>
+
+            <!-- ON / OFF Toggle -->
+            <div class="power-section">
+                <div class="power-left">
+                    <span class="power-label">Power</span>
+                    <span class="power-status-text" id="power-status-text">OFF</span>
+                </div>
+                <button class="power-toggle" id="power-toggle" onclick="togglePower()" aria-label="Toggle power">
+                    <div class="toggle-track" id="toggle-track">
+                        <div class="toggle-thumb" id="toggle-thumb"></div>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Realtime Stats -->
+            <div class="realtime-stats">
+                <div class="stat-card" id="stat-lux-card">
+                    <div class="stat-card-icon">☀️</div>
+                    <div class="stat-card-body">
+                        <span class="stat-card-label">Lux Saat Ini</span>
+                        <span class="stat-card-value" id="detail-lux">0 lx</span>
                     </div>
                 </div>
-
-                <!-- Lamp Info -->
-                <div class="lamp-info-section">
-                    <!-- Lamp Bulb Glow -->
-                    <div class="lamp-glow-icon">
-                        <div class="lamp-bulb" id="bulb-1">💡</div>
-                        <span class="lamp-status-label off" id="bulb-label-1">OFF</span>
-                    </div>
-                    <!-- Stats -->
-                    <div class="stat-row">
-                        <div class="stat-item">
-                            <span class="stat-label">Lux</span>
-                            <span class="stat-value" id="val-lux-1">0</span>
-                        </div>
+                <div class="stat-card">
+                    <div class="stat-card-icon">💡</div>
+                    <div class="stat-card-body">
+                        <span class="stat-card-label">Brightness</span>
+                        <span class="stat-card-value" id="detail-brightness">0%</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Active Mode Display -->
-            <div class="active-mode-display">
-                <div class="active-mode-dot" id="mode-dot-1"></div>
-                <div class="active-mode-text">Mode aktif: <strong id="active-mode-label-1">–</strong></div>
-            </div>
-
-
-
-            <!-- Modes Grid -->
-            <span class="modes-section-title">Pilih Mode</span>
-            <div class="modes-grid">
-                <button class="mode-btn btn-lampu_1" data-mode="ruang_tidur">
-                    <span class="icon">🛏️</span>
-                    <span>Tidur</span>
-                </button>
-                <button class="mode-btn btn-lampu_1" data-mode="ruang_tamu">
-                    <span class="icon">🛋️</span>
-                    <span>Tamu</span>
-                </button>
-                <button class="mode-btn btn-lampu_1" data-mode="ruang_makan">
-                    <span class="icon">🍽️</span>
-                    <span>Makan</span>
-                </button>
-                <button class="mode-btn btn-lampu_1" data-mode="ruang_kerja">
-                    <span class="icon">💻</span>
-                    <span>Kerja</span>
-                </button>
-                <button class="mode-btn btn-lampu_1" data-mode="manual" id="btn-manual-1">
-                    <span class="icon">🎚️</span>
-                    <span>Manual</span>
-                </button>
-            </div>
-
-            <!-- Slider (Manual) -->
-            <div class="slider-container" id="slider-container-1">
-                <div class="slider-header">
-                    <label for="brightness-slider-1">Kecerahan Manual</label>
-                    <span class="slider-val-display" id="slider-display-1">0%</span>
+            <!-- SNI Threshold Indicator -->
+            <div class="sni-section">
+                <div class="sni-section-header">
+                    <span class="sni-title">Ambang SNI 03-6197-2000</span>
+                    <span class="sni-range-text" id="sni-range">– lx</span>
                 </div>
-                <input type="range" id="brightness-slider-1" min="0" max="100" value="0" disabled>
+                <div class="sni-bar-wrap">
+                    <div class="sni-bar-track">
+                        <div class="sni-zone-ok"  id="sni-zone-ok"></div>
+                        <div class="sni-marker"   id="sni-marker"></div>
+                    </div>
+                    <div class="sni-bar-axis">
+                        <span>0 lx</span>
+                        <span id="sni-axis-max">–</span>
+                    </div>
+                </div>
+                <div class="sni-status-badge" id="sni-status-badge">–</div>
             </div>
 
-            <div class="section-divider"></div>
-
-            <!-- Logs -->
-            <div class="logs-container">
-                <div class="logs-header">
-                    <h2>Riwayat Lampu 1</h2>
-                    <span class="logs-count-badge" id="log-count-1">0 log</span>
+            <!-- Line Chart — Lux Realtime -->
+            <div class="chart-section">
+                <div class="chart-section-header">
+                    <span class="chart-title">📈 Grafik Lux Realtime</span>
+                    <span class="chart-subtitle" id="chart-count">– data</span>
                 </div>
-                <div class="logs-list" id="logs-list-1">
-                    <div class="log-placeholder">Belum ada riwayat</div>
+                <div class="chart-container">
+                    <canvas id="lux-chart"></canvas>
+                </div>
+                <div class="chart-legend">
+                    <span class="legend-item"><span class="legend-dot blue"></span>Lux</span>
+                    <span class="legend-item"><span class="legend-dot yellow"></span>SNI Min</span>
+                    <span class="legend-item"><span class="legend-dot red"></span>SNI Max</span>
                 </div>
             </div>
+
+
+            <!-- Detail Error Box -->
+            <div id="detail-error-box" class="error-box"></div>
+
         </div>
+    </div>
 
-        <!-- ============ PANEL LAMPU 2 ============ -->
-        <div id="panel-lampu_2" class="lamp-panel">
+    <!-- ====================================================
+         MODAL: Add Device
+         ==================================================== -->
+    <div class="modal-overlay" id="modal-overlay" onclick="closeModalOutside(event)">
+        <div class="modal-card" id="modal-card">
 
-            <!-- Lamp Visual: Ring Gauge + Glow Icon -->
-            <div class="lamp-visual-section">
-                <div class="ring-gauge-wrap">
-                    <svg class="ring-gauge" viewBox="0 0 120 120">
-                        <defs>
-                            <linearGradient id="ringGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%"   stop-color="#a78bfa"/>
-                                <stop offset="100%" stop-color="#f0abfc"/>
-                            </linearGradient>
-                        </defs>
-                        <circle class="ring-bg"   cx="60" cy="60" r="50"/>
-                        <circle class="ring-fill" cx="60" cy="60" r="50" id="ring-fill-2"
-                                stroke="url(#ringGrad2)"
-                                style="stroke-dasharray:314; stroke-dashoffset:314;"/>
+            <div class="modal-header">
+                <h3>➕ Tambah Device</h3>
+                <button class="modal-close-btn" onclick="closeAddModal()" aria-label="Tutup">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                     </svg>
-                    <div class="ring-center">
-                        <span class="ring-brightness-val" id="val-brightness-2">0%</span>
-                        <span class="ring-brightness-label">Brightness</span>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="input-device-id">Device ID</label>
+                    <input type="text" id="input-device-id" placeholder="contoh: lampu_1" autocomplete="off" spellcheck="false">
+                    <small class="form-hint">⚠️ Harus sama dengan <code>DEVICE_ID</code> di kode ESP32</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="input-device-name">Nama Device</label>
+                    <input type="text" id="input-device-name" placeholder="contoh: Lampu Kamar Tidur" autocomplete="off">
+                </div>
+
+                <div class="form-group">
+                    <label>Mode Ruangan</label>
+                    <div class="modal-modes-grid" id="modal-modes-grid">
+                        <!-- rendered by JS -->
                     </div>
                 </div>
-
-                <div class="lamp-info-section">
-                    <div class="lamp-glow-icon">
-                        <div class="lamp-bulb" id="bulb-2">💡</div>
-                        <span class="lamp-status-label off" id="bulb-label-2">OFF</span>
-                    </div>
-                    <div class="stat-row">
-                        <div class="stat-item">
-                            <span class="stat-label">Lux</span>
-                            <span class="stat-value" id="val-lux-2">0</span>
-                        </div>
-                    </div>
-                </div>
             </div>
 
-            <!-- Active Mode Display -->
-            <div class="active-mode-display">
-                <div class="active-mode-dot" id="mode-dot-2" style="background:#a78bfa;box-shadow:0 0 8px #a78bfa;"></div>
-                <div class="active-mode-text">Mode aktif: <strong id="active-mode-label-2">–</strong></div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeAddModal()">Batal</button>
+                <button class="btn-submit" id="btn-submit-device" onclick="submitAddDevice()">Tambahkan</button>
             </div>
 
-
-
-            <!-- Modes Grid -->
-            <span class="modes-section-title">Pilih Mode</span>
-            <div class="modes-grid">
-                <button class="mode-btn btn-lampu_2" data-mode="ruang_dapur">
-                    <span class="icon">🍳</span>
-                    <span>Dapur</span>
-                </button>
-                <button class="mode-btn btn-lampu_2" data-mode="ruang_teras">
-                    <span class="icon">🏡</span>
-                    <span>Teras</span>
-                </button>
-                <button class="mode-btn btn-lampu_2" data-mode="kamar_mandi">
-                    <span class="icon">🚿</span>
-                    <span>Kamar Mandi</span>
-                </button>
-                <button class="mode-btn btn-lampu_2" data-mode="manual_2">
-                    <span class="icon">🎚️</span>
-                    <span>Manual</span>
-                </button>
-            </div>
-
-            <!-- Slider (Manual) -->
-            <div class="slider-container" id="slider-container-2">
-                <div class="slider-header">
-                    <label for="brightness-slider-2">Kecerahan Manual</label>
-                    <span class="slider-val-display" id="slider-display-2">0%</span>
-                </div>
-                <input type="range" id="brightness-slider-2" min="0" max="100" value="0" disabled>
-            </div>
-
-            <div class="section-divider"></div>
-
-            <!-- Logs -->
-            <div class="logs-container">
-                <div class="logs-header">
-                    <h2>Riwayat Lampu 2</h2>
-                    <span class="logs-count-badge" id="log-count-2">0 log</span>
-                </div>
-                <div class="logs-list" id="logs-list-2">
-                    <div class="log-placeholder">Belum ada riwayat</div>
-                </div>
-            </div>
         </div>
+    </div>
 
-        <!-- Error Box -->
-        <div id="error-box"></div>
+    <!-- ====================================================
+         MODAL: Switch Mode
+         ==================================================== -->
+    <div class="modal-overlay" id="switch-modal-overlay" onclick="closeSwitchModalOutside(event)">
+        <div class="modal-card" id="switch-modal-card">
 
-    </div><!-- /glass-container -->
+            <div class="modal-header">
+                <h3>🔄 Ganti Mode Ruangan</h3>
+                <button class="modal-close-btn" onclick="closeSwitchModal()" aria-label="Tutup">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <p style="color: #94a3b8; font-size: 13px; margin: 0; line-height: 1.4;">Pilih mode ruangan baru sesuai standar pencahayaan SNI 03-6197-2000:</p>
+                <div class="modal-modes-grid" id="switch-modes-grid">
+                    <!-- rendered by JS -->
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeSwitchModal()">Batal</button>
+                <button class="btn-submit" id="btn-submit-switch" onclick="submitSwitchMode()">Simpan Mode</button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Global Error Box -->
+    <div id="error-box" class="error-box"></div>
 
     <script>
         // Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js')
-                    .then(r => console.log('SW registered:', r.scope))
-                    .catch(e => console.log('SW failed:', e));
+                    .then(r => console.log('SW:', r.scope))
+                    .catch(e => console.log('SW fail:', e));
             });
         }
-
-        // Global Error Handler
+        // Global error handler
         window.onerror = function(msg, url, line) {
-            const errBox = document.getElementById('error-box');
-            errBox.style.display = 'block';
-            errBox.innerHTML += `<strong>Error:</strong> ${msg}<br>Line: ${line}<br><br>`;
+            const box = document.getElementById('error-box');
+            box.style.display = 'block';
+            box.innerHTML += `<strong>Error:</strong> ${msg} (line ${line})<br>`;
         };
         window.addEventListener("unhandledrejection", function(e) {
-            const errBox = document.getElementById('error-box');
-            errBox.style.display = 'block';
-            errBox.innerHTML += `<strong>Promise Error:</strong> ${e.reason}<br><br>`;
+            const box = document.getElementById('error-box');
+            box.style.display = 'block';
+            box.innerHTML += `<strong>Promise Error:</strong> ${e.reason}<br>`;
         });
     </script>
-    <script src="app.js?v=5"></script>
+    <script src="app.js?v=6"></script>
 </body>
 </html>
